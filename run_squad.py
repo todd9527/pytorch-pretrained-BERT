@@ -938,9 +938,9 @@ def main():
         else:
             optimizer = FP16_Optimizer(optimizer, static_loss_scale=args.loss_scale)
     else:
-        print("grouped params: {}".format(optimizer_grouped_parameters))     #todo: remove
-        optimizer_grouped_parameters[0]['params']  = optimizer_grouped_parameters[0]['params'][-2:]#todo: remove
-        optimizer_grouped_parameters[1]['params'] = optimizer_grouped_parameters[1]['params'][-2:] # todo: remove
+        # todo: the below two lines are an example of how to "freeze" layers
+        #optimizer_grouped_parameters[0]['params']  = optimizer_grouped_parameters[0]['params'][-2:]
+        #optimizer_grouped_parameters[1]['params'] = optimizer_grouped_parameters[1]['params'][-2:]
         optimizer = BertAdam(optimizer_grouped_parameters,
                              lr=args.learning_rate,
                              warmup=args.warmup_proportion,
