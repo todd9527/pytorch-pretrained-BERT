@@ -521,7 +521,7 @@ def write_predictions(all_examples, all_features, all_results, n_best_size,
                     end_index=0,
                     start_logit=null_start_logit,
                     end_logit=null_end_logit))
-        prelim_predictions = sorted(
+        prelim_predictions = sorted(   # todo: we would want to incorporate answer verifier output here (if beyond threshold set null feature index to front)
             prelim_predictions,
             key=lambda x: (x.start_logit + x.end_logit),
             reverse=True)
