@@ -1029,7 +1029,10 @@ def main():
 
         # Load a trained model and config that you have fine-tuned
         config = BertConfig(output_config_file)
-        model = BertForQuestionAnswering(config)
+        if args.use_custom_model:
+            model = BertWithAnswerVerifier(config)
+        else:
+            model = BertForQuestionAnswering(config)
         model.load_state_dict(torch.load(output_model_file))
     else:
         model = BertForQuestionAnswering.from_pretrained(args.bert_model)
