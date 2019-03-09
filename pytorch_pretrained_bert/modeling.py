@@ -592,7 +592,7 @@ class BertPreTrainedModel(nn.Module):
         # Load from a PyTorch state_dict
         old_keys = []
         new_keys = []
-        for key in state_dict.keys():
+        for key in list(state_dict.keys()):
             new_key = None
             if 'gamma' in key:
                 new_key = key.replace('gamma', 'weight')
@@ -601,14 +601,24 @@ class BertPreTrainedModel(nn.Module):
             if new_key:
                 old_keys.append(key)
                 new_keys.append(new_key)
+            elif hasattr(model, "bert_verifier") and key.startswith("bert"):
+                state_dict[key.replace("bert", "bert_verifier")] = state_dict[key]
         for old_key, new_key in zip(old_keys, new_keys):
-            state_dict[new_key] = state_dict.pop(old_key)
+            value = state_dict.pop(old_key)
+            state_dict[new_key] = value
+            if hasattr(model, "bert_verifier") and new_key.startswith("bert"):
+                second_new_key = new_key.replace("bert.", "bert_verifier.")
+                state_dict[second_new_key] = value
 
         missing_keys = []
         unexpected_keys = []
         error_msgs = []
         # copy state_dict so _load_from_state_dict can modify it
         metadata = getattr(state_dict, '_metadata', None)
+        # if hasattr(model, "bert_verifier"):
+        #     for key in list(metadata.keys()):
+        #         if key.startswith("bert"):
+        #             metadata[key.replace("bert", "bert_verifier")] = metadata[key]
         state_dict = state_dict.copy()
         if metadata is not None:
             state_dict._metadata = metadata
@@ -622,7 +632,7 @@ class BertPreTrainedModel(nn.Module):
                     load(child, prefix + name + '.')
         start_prefix = ''
         if not hasattr(model, 'bert') and any(s.startswith('bert.') for s in state_dict.keys()):
-            start_prefix = 'bert.'
+            start_prefix = 'bert.'  # todo: needs to be attribute for what BertModel actually called
         load(model, prefix=start_prefix)
         if len(missing_keys) > 0:
             logger.info("Weights of {} not initialized from pretrained model: {}".format(
