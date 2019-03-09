@@ -62,7 +62,7 @@ class BertWithAnswerVerifier(BertPreTrainedModel):
         self.bert_verifier = BertModel(config) # Second bert network for computing answerability only
 
         self.qa_outputs = nn.Linear(config.hidden_size, 2)
-        self.verifier_outputs = nn.Linear(config.hidden_size, 1)
+        self.verifier_outputs = nn.Linear(config.hidden_size, 2) # todo: change back to 1
 
         self.apply(self.init_bert_weights)
 
@@ -74,9 +74,11 @@ class BertWithAnswerVerifier(BertPreTrainedModel):
     """
     @classmethod
     def _combine_logits_with_verifier(self, start_logits, end_logits, answerability_logits):
-        answerability_logit = answerability_logits[:, 0, 0]  # (batch_size,)
-        start_logits[:, 0] += answerability_logit
-        end_logits[:, 0] += answerability_logit
+        #answerability_logit = answerability_logits[:, 0, 0]  # (batch_size,)
+        # start_logits[:, 0] += answerability_logit
+        # end_logits[:, 0] += answerability_logit
+        start_logits[:, 0] += answerability_logits[:, 0, 0]
+        end_logits[:, 0] += answerability_logits[:, 0, 1]
         return start_logits, end_logits   # shape (batch_size, seq_len)
 
     def forward(self, input_ids, token_type_ids=None, attention_mask=None, start_positions=None, end_positions=None):
