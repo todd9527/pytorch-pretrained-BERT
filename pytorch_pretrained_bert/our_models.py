@@ -66,6 +66,19 @@ class BertWithAnswerVerifier(BertPreTrainedModel):
 
         self.apply(self.init_bert_weights)
 
+
+    """
+    @param start_logits (batch, seq_len) 
+    @param end_logits (batch, seq_len)
+    @param answerability_logits (batch, seq_len, 2). Only the first logit is used. 
+    """
+    @classmethod
+    def _combine_logits_with_verifier(self, start_logits, end_logits, answerability_logits):
+        answerability_logit = answerability_logits[:, 0, 0]  # (batch_size,)
+        start_logits[:, 0] += answerability_logit
+        end_logits[:, 0] += answerability_logit
+        return start_logits, end_logits   # shape (batch_size, seq_len)
+
     def forward(self, input_ids, token_type_ids=None, attention_mask=None, start_positions=None, end_positions=None):
         sequence_output, _ = self.bert(input_ids, token_type_ids, attention_mask, output_all_encoded_layers=False)
         logits = self.qa_outputs(sequence_output)
@@ -74,9 +87,8 @@ class BertWithAnswerVerifier(BertPreTrainedModel):
         end_logits = end_logits.squeeze(-1)
 
         sequence_output_verifier, _ = self.bert_verifier(input_ids, token_type_ids, attention_mask, output_all_encoded_layers=False)
-        answerability_logit = self.verifier_outputs(sequence_output_verifier)[:][0][0]
-        start_logits[:][0] += answerability_logit
-        end_logits[:][0] += answerability_logit
+        answerability_logits = self.verifier_outputs(sequence_output_verifier)
+        start_logits, end_logits = self._combine_logits_with_verifier(start_logits, end_logits, answerability_logits)
 
         if start_positions is not None and end_positions is not None:
             # If we are on multi-GPU, split add a dimension
@@ -97,3 +109,5 @@ class BertWithAnswerVerifier(BertPreTrainedModel):
             return total_loss
         else:
             return start_logits, end_logits
+
+
