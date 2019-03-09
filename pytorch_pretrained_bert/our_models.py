@@ -2,7 +2,8 @@ import torch
 from torch import nn
 from torch.nn import CrossEntropyLoss
 
-from modeling import BertPreTrainedModel, BertModel, BertSelfAttention
+
+from .modeling import BertPreTrainedModel, BertModel, BertSelfAttention
 
 # Class (and class comments) based off of Huggingface's BertForQuestionAnswering example class
 # todo: modify the class below to use method in the paper that we find (method on top of bert embeddings)
@@ -58,16 +59,11 @@ class BertWithAnswerVerifier(BertPreTrainedModel):
         #self.MAX_SEQ_LEN = 384 + 1 # note: we used max_seq_len of 384 for training, plus one for nonce
         super(BertWithAnswerVerifier, self).__init__(config)
         self.bert = BertModel(config)
+        self.bert_verifier = BertModel(config) # Second bert network for computing answerability only
 
         self.qa_outputs = nn.Linear(config.hidden_size, 2)
+        self.verifier_outputs = nn.Linear(config.hidden_size, 1)
 
-        self.encoder = nn.lstm(input_size=config.hidden_size, hidden_size=config.hidden_size, num_layers=1, bidirectional=True)
-        self.answer_verifier = nn.Linear(2 * config.hidden_size, 1)
-
-        #self.answer_verifier = nn.Linear(config.hidden_size * self.MAX_SEQ_LEN, 1)
-        # use cnn or lstm to predict whether answerable?
-        # could also use attention, perhaps leveraging bert self attention class or other class from modeling.py
-        # answerable_logit = self.answer_verifier(sequence_output.flatten())
         self.apply(self.init_bert_weights)
 
     def forward(self, input_ids, token_type_ids=None, attention_mask=None, start_positions=None, end_positions=None):
@@ -77,11 +73,10 @@ class BertWithAnswerVerifier(BertPreTrainedModel):
         start_logits = start_logits.squeeze(-1)
         end_logits = end_logits.squeeze(-1)
 
-        # todo: use packed padded sequence to represent seq_output_transposed
-        seq_output_transposed = sequence_output.transpose(0, 1)  # (seq_len, batch, input_size)
-        output, enc_state = self.encoder(seq_output_transposed)
-        h_n, c_n = enc_state
-        answerable_logit = self.answer_verifier(h_n)
+        sequence_output_verifier, _ = self.bert_verifier(input_ids, token_type_ids, attention_mask, output_all_encoded_layers=False)
+        answerability_logit = self.verifier_outputs(sequence_output_verifier)[:][0][0]
+        start_logits[:][0] += answerability_logit
+        end_logits[:][0] += answerability_logit
 
         if start_positions is not None and end_positions is not None:
             # If we are on multi-GPU, split add a dimension
@@ -98,11 +93,7 @@ class BertWithAnswerVerifier(BertPreTrainedModel):
             start_loss = loss_fct(start_logits, start_positions)
             end_loss = loss_fct(end_logits, end_positions)
 
-            combined_positions = start_positions + end_positions
-            answerable_ground_truth = combined_positions.where(combined_positions == 0, 1, 0)
-            answer_verifier_loss = loss_fct(answerable_logit, answerable_ground_truth)
-
-            total_loss = (start_loss + end_loss) / 2 + answer_verifier_loss
+            total_loss = (start_loss + end_loss) / 2
             return total_loss
         else:
             return start_logits, end_logits
