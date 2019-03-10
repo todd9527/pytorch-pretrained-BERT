@@ -839,6 +839,8 @@ def main():
                         type=float, default=0.0,
                         help="If null_score - best_non_null is greater than the threshold predict null.")
     parser.add_argument("--use_custom_model", action='store_true', help="Whether to use our own modified bert instead")
+    parser.add_argument("--saved_model_dir_for_predictions", default=None, type=str, required=False,
+                        help="Ignore model from training and use model from this directory instead for predictions")
 
     args = parser.parse_args()
 
@@ -1034,6 +1036,15 @@ def main():
         else:
             model = BertForQuestionAnswering(config)
         model.load_state_dict(torch.load(output_model_file))
+    elif args.saved_model_dir_for_predictions:
+        input_config_file = os.path.join(args.saved_model_dir_for_predictions, CONFIG_NAME)
+        input_model_file = os.path.join(args.saved_model_dir_for_predictions, WEIGHTS_NAME)
+        config = BertConfig(input_config_file)
+        if args.use_custom_model:
+            model = BertWithAnswerVerifier(config)
+        else:
+            model = BertForQuestionAnswering(config)
+        model.load_state_dict(torch.load(input_model_file, map_location=device))
     else:
         model = BertForQuestionAnswering.from_pretrained(args.bert_model)
 
