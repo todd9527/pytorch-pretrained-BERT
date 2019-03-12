@@ -81,7 +81,7 @@ class BertWithAnswerVerifier(BertPreTrainedModel):
         end_logits[:, 0] += answerability_logits[:, 0, 1]
         return start_logits, end_logits   # shape (batch_size, seq_len)
 
-    def forward(self, input_ids, token_type_ids=None, attention_mask=None, start_positions=None, end_positions=None):
+    def forward(self, input_ids, token_type_ids=None, attention_mask=None, start_positions=None, end_positions=None, is_ensemble=True):
         sequence_output, _ = self.bert(input_ids, token_type_ids, attention_mask, output_all_encoded_layers=False)
         logits = self.qa_outputs(sequence_output)
         start_logits, end_logits = logits.split(1, dim=-1)
@@ -90,7 +90,13 @@ class BertWithAnswerVerifier(BertPreTrainedModel):
 
         sequence_output_verifier, _ = self.bert_verifier(input_ids, token_type_ids, attention_mask, output_all_encoded_layers=False)
         answerability_logits = self.verifier_outputs(sequence_output_verifier)
-        start_logits, end_logits = self._combine_logits_with_verifier(start_logits, end_logits, answerability_logits)
+        if is_ensemble:
+            logits = (logits + answerability_logits) / 2.0
+            start_logits, end_logits = logits.split(1, dim=-1)
+            start_logits = start_logits.squeeze(-1)
+            end_logits = end_logits.squeeze(-1)
+        else:
+            start_logits, end_logits = self._combine_logits_with_verifier(start_logits, end_logits, answerability_logits)
 
         if start_positions is not None and end_positions is not None:
             # If we are on multi-GPU, split add a dimension
