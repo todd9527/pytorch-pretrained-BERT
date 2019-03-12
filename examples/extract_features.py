@@ -28,8 +28,10 @@ import torch
 from torch.utils.data import TensorDataset, DataLoader, SequentialSampler
 from torch.utils.data.distributed import DistributedSampler
 
+import os
 from pytorch_pretrained_bert.tokenization import BertTokenizer
 from pytorch_pretrained_bert.modeling import BertModel
+from pytorch_pretrained_bert.modeling import BertForQuestionAnswering, BertConfig, WEIGHTS_NAME, CONFIG_NAME
 
 logging.basicConfig(format = '%(asctime)s - %(levelname)s - %(name)s -   %(message)s', 
                     datefmt = '%m/%d/%Y %H:%M:%S',
@@ -199,6 +201,7 @@ def main():
                              "bert-large-uncased, bert-base-cased, bert-base-multilingual, bert-base-chinese.")
 
     ## Other parameters
+    parser.add_argument("--pretrained_squad_model", default=None, type=str)
     parser.add_argument("--do_lower_case", action='store_true', help="Set this flag if you are using an uncased model.")
     parser.add_argument("--layers", default="-1,-2,-3,-4", type=str)
     parser.add_argument("--max_seq_length", default=128, type=int,
@@ -238,7 +241,16 @@ def main():
     for feature in features:
         unique_id_to_feature[feature.unique_id] = feature
 
-    model = BertModel.from_pretrained(args.bert_model)
+
+    if args.pretrained_squad_model:
+        input_config_file = os.path.join(args.pretrained_squad_model, CONFIG_NAME)
+        input_model_file = os.path.join(args.pretrained_squad_model, WEIGHTS_NAME)
+        config = BertConfig(input_config_file)
+        qa_model = BertForQuestionAnswering(config)
+        qa_model.load_state_dict(torch.load(input_model_file, map_location=device))
+        model = qa_model.bert  # The model we will use for extracting
+    else:
+        model = BertModel.from_pretrained(args.bert_model)
     model.to(device)
 
     if args.local_rank != -1:
