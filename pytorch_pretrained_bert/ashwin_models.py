@@ -65,6 +65,8 @@ class BertAnswerVerifier(BertPreTrainedModel):
         start_logits = start_logits.squeeze(-1)
         end_logits = end_logits.squeeze(-1)
 
+        # Build a no-answer row
+
         answerable_logits = start_logits[:, 0]
 
         if start_positions is not None and end_positions is not None:
@@ -88,4 +90,12 @@ class BertAnswerVerifier(BertPreTrainedModel):
 
             return loss
         else:
-            return answerable_logits
+            for i in range(start_logits.shape[0]):
+                if answerable_logits[i] < 0.5:
+                    start_logits[i] = 0
+                    end_logits[i] = 0
+
+                    start_logits[i][0] = 1
+                    end_logits[i][0] = 1
+
+            return start_logits, end_logits
