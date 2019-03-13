@@ -249,10 +249,7 @@ class BertEmbeddings(nn.Module):
 
     def forward(self, input_ids, token_type_ids=None):
         seq_length = input_ids.size(1)
-        print("input ids shape: ", input_ids.size())
-        print("token_types shape: ", token_type_ids.size())
         position_ids = torch.arange(seq_length, dtype=torch.long, device=input_ids.device)
-        print("position_ids shape: ", position_ids.size())
         position_ids = position_ids.unsqueeze(0).expand_as(input_ids)
         if token_type_ids is None:
             token_type_ids = torch.zeros_like(input_ids)
