@@ -36,7 +36,7 @@ from tqdm import tqdm, trange
 
 from pytorch_pretrained_bert.file_utils import PYTORCH_PRETRAINED_BERT_CACHE
 from pytorch_pretrained_bert.modeling import BertForQuestionAnswering, BertConfig, WEIGHTS_NAME, CONFIG_NAME
-from pytorch_pretrained_bert.our_models import BertWithAnswerVerifier
+from pytorch_pretrained_bert.ashwin_models import BertAnswerVerifier
 from pytorch_pretrained_bert.optimization import BertAdam, warmup_linear
 from pytorch_pretrained_bert.tokenization import (BasicTokenizer,
                                                   BertTokenizer,
@@ -899,7 +899,7 @@ def main():
 
     # Prepare model
     if args.use_custom_model:
-        model = BertWithAnswerVerifier.from_pretrained(args.bert_model,
+        model = BertAnswerVerifier.from_pretrained(args.bert_model,
                     cache_dir=os.path.join(PYTORCH_PRETRAINED_BERT_CACHE,'distributed_{}'.format(args.local_rank)))
     else:
         model = BertForQuestionAnswering.from_pretrained(args.bert_model,
@@ -1032,7 +1032,7 @@ def main():
         # Load a trained model and config that you have fine-tuned
         config = BertConfig(output_config_file)
         if args.use_custom_model:
-            model = BertWithAnswerVerifier(config)
+            model = BertAnswerVerifier(config)
         else:
             model = BertForQuestionAnswering(config)
         model.load_state_dict(torch.load(output_model_file))
@@ -1041,7 +1041,7 @@ def main():
         input_model_file = os.path.join(args.saved_model_dir_for_predictions, WEIGHTS_NAME)
         config = BertConfig(input_config_file)
         if args.use_custom_model:
-            model = BertWithAnswerVerifier(config)
+            model = BertAnswerVerifier(config)
         else:
             model = BertForQuestionAnswering(config)
         model.load_state_dict(torch.load(input_model_file, map_location=device))
